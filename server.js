@@ -1,82 +1,3 @@
-// 'use strict';
-
-// const express = require('express');
-// const cors = require('cors');
-// const mongoose = require('mongoose');
-// require('dotenv').config();
-
-
-// const PORT = process.env.PORT;
-// const server = express();
-
-// server.use(cors());
-// mongoose.connect('mongodb://localhost:27017/test', { useNewUrlParser: true, useUnifiedTopology: true });
-
-
-// // ____Schema____________________________________==>
-
-// const BooksAbdallah = new mongoose.Schema({
-//     books: [{
-//         title: String,
-//         description: String,
-//     }],
-//     email: String,
-// });
-
-// // ____Model____________________________________==>
-
-// const BookModel = mongoose.model('Books', BooksAbdallah);
-
-// function seedDataCollection() {
-
-//     const emailGmail = new BookModel({
-//         email: 'Abdallah.hamoury@gmail.com',
-//         books: [
-//             {
-
-//                 title: 'Broken Glass',
-//                 description: 'The Congolese writer says he was “trying to break the French language” with Broken Glass – a black comedy told by a disgraced teacher without much in the way of full stops or paragraph breaks',
-//             },
-//             {
-//                 title: 'Girl With the Dragon Tattoo',
-//                 description: 'Radical journalist Mikael Blomkvist forms an unlikely alliance with troubled young hacker Lisbeth Salander as they follow a trail of murder and malfeasance connected with one of Sweden’s most powerful families in the first novel of the bestselling Millennium trilogy',
-//             }
-//         ]
-
-//     })
-
-//     const HotMail = new BookModel({
-//         email: 'Abdallah.hamoury@hotmail.com',
-//         books: [{
-//             title: 'Harry Potter and the Goblet of Fire',
-//             description: 'A generation grew up on Rowling’s all-conquering magical fantasies, but countless adults have also been enthralled by her immersive world. Book four, the first of the doorstoppers, marks the point where the series really takes off. The Triwizard Tournament provides pace and tension',
-//         }]
-//     })
-//     emailGmail.save();
-//     HotMail.save();
-// }
-// seedDataCollection()
-
-// server.get('/getBooks', getBooksHandler);
-
-// function getBooksHandler(req, res) {
-
-//     let emailAdress = req.query.email;
-//     BookModel.find({ email: emailAdress }, function (err, ownerData) {
-//         if (err) {
-//             console.log('error in getting the data')
-//         } else {
-//             console.log(ownerData);
-//             res.send(ownerData[0].Books)
-//         }
-//     })
-// }
-
-
-// server.listen(PORT, () => {
-//     console.log(`listening on PORT ${PORT}`);
-// })
-
 'use strict'
 const express = require('express');
 const cors = require('cors');
@@ -85,60 +6,90 @@ require('dotenv').config();
 const PORT = process.env.PORT;
 const server = express();
 server.use(cors());
-//books database
-mongoose.connect('mongodb://localhost:27017/test', { useNewUrlParser: true, useUnifiedTopology: true });
-//Schema 
-const bookSchema = new mongoose.Schema({
-    books: [{
-        title: String,
-        description: String,
-    }],
-    email: String,
-});
+server.use(express.json()); 
+const BookSchema = require("./BookSchema");
+
+mongoose.connect(process.env.MONGO_APP , { useNewUrlParser: true, useUnifiedTopology: true });
+// 'mongodb://localhost:27017/test'
+
 //Model 
-const BooksModel = mongoose.model('Books', bookSchema);
-function seedDataCollection() {
-    const emailYahoo = new BooksModel({
-        email: "abdallah.hamoury@gmail.com",
-        books: [
-            {
-                title: "Idiot Brain",
-                description: "Explains What Your Head is Really Up To",
-                status: "success",
-            },
-            {
-                title: "Happy Brain",
-                description: "investigate what causes happiness, where it comes from, and why we are so desperate to hang onto it.",
-                status: "success",
-            }
-        ]
-    })
-    const emailGmail = new BooksModel({
-        email: "abdallah.hamour@gmail.com",
-        books: [{
-            title: "The Da Vinci Code",
-            description: "mystery thriller novel.",
-            status: "complete"
-        }]
-    })
-    emailYahoo.save();
-    emailGmail.save();
-}
-// seedDataCollection();
-//localhost:3001/books?email=
+const BooksModel = mongoose.model('Books', BookSchema);
+
+server.get('/test', testHandler);
 server.get('/books', getBooksHandler);
+server.post('/addBook', addBookHandler);
+server.delete('/deletBook/:bookId', deletBookHandler);
+server.put('/updateBook/:bookId', updateBookHandler);
+
+
+function testHandler(req, res) {
+    res.send('all good')
+}
+//localhost:3001/books?email=
 function getBooksHandler(req, res) {
     let emailAdress = req.query.email;
-    // console.log(emailAdress);
     BooksModel.find({ email: emailAdress }, function (err, resultData) {
         if (err) {
             console.log('There is no Data for the email address: ' + emailAdress);
         } else {
-            console.log("yyyyyyyyyyyyyyyy", resultData[0].books);
-            res.send(resultData[0].books);
+            console.log("yyyyyyyyyyyyyyyy", resultData);
+            res.send(resultData);
         }
     })
 }
+async function addBookHandler(req, res) {
+    console.log(req.body);
+    // { title: "abd",  description: "This Book is for  managment",  status: "On Stock",  email: "abuataabooood@yahoo.com" }
+    let { title, description, status,email } = req.body; //Destructuring assignment .
+    await BooksModel.create({ title, description, status,email });
+    // await BookModel.create(req.body)
+    getBooksHandler(req,res); // send data to frontEnd
+}
+
+async function deletBookHandler(req,res) {
+    console.log('inside deletBookHandler func');
+    console.log(req.params.bookId);
+    let emailOwner= req.query.email;
+
+    let bookId = req.params.bookId;
+    BooksModel.remove({_id:bookId},(error,deletedBook)=>{
+        if(error) {
+            console.log('error in deleteing the data')
+        } else {
+            console.log('data deleted', deletedBook)
+            BooksModel.find({email: emailOwner},function(err,data){
+                if(err) {
+                    console.log('error in getting the data')
+                } else {
+                    console.log(data);
+                    res.send(data);
+                }
+            })
+        }
+    })
+}
+async function updateBookHandler(req,res) { // another way https://github.com/LTUC/amman-301d29/blob/master/class-14/demo/react-mongoose/backend/server.js
+    console.log('inside updateBookHandler func');
+    let bookId = req.params.bookId;
+    let { title, description, status,email }=req.body;
+    console.log(req.body);
+    BooksModel.findByIdAndUpdate(bookId, { title , description, status, email },(error,updatedData)=>{//updatedDatais for one obj just 
+        if(error) {
+            console.log('error in updating the data')
+        } else {
+            console.log("Data updated!");
+            
+            BooksModel.find({email: req.body.email},function(err,data){
+                if(err) {
+                    console.log('error in getting the data')
+                } else {
+                    res.send(data);
+                }
+            })
+        }
+    })
+}
+
 server.listen(PORT, () => {
     console.log(`Listening on PORT ${PORT}`);
 })
